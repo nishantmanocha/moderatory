@@ -1,0 +1,178 @@
+Project Overview
+
+Build a full-stack AI-powered micro-investment advisor for low-income users.
+Frontend: React Native with Expo Router (latest SDK), Tailwind for styling, Lucide React Native for icons.
+Backend: Node.js + Express, integrated with simple ML models for predictions and insights.
+ML stack: scikit-learn, Prophet, Hugging Face Transformers.
+
+Frontend Specification (React Native + Expo Router)
+
+Theme & Branding
+
+Colors:
+
+Primary: #006B3F (Emerald Green)
+
+Accent: #FFD700 (Gold), #FF914D (Soft Orange)
+
+Background: #FAF8F0 (Ivory)
+
+Text Primary: #003153 (Deep Navy)
+
+Typography: Poppins (headings), Inter (body)
+
+Icons: Lucide React Native (lucide-react-native)
+
+Button Style: Rounded-lg, solid fill, drop shadow
+
+Animation: react-native-reanimated fade/slide transitions
+
+Navigation Structure (Expo Router)
+app/
+  _layout.tsx      # Root stack
+  index.tsx        # Welcome / Get Started
+  onboarding/
+    welcome.tsx
+    income.tsx
+    permissions.tsx
+  (tabs)/
+    _layout.tsx    # Bottom tab layout
+    home.tsx
+    transactions.tsx
+    planner.tsx
+    learn.tsx
+
+Pages & UI Flow
+1. Welcome Screen (app/index.tsx)
+
+UI:
+
+Logo + Tagline
+
+Get Started button (router.push('/onboarding/welcome'))
+
+Purpose:
+
+Entry point before onboarding
+
+2. Onboarding Flow
+
+welcome.tsx: Multilingual intro (EN/HI/PB), skip or next
+
+income.tsx: Collect income, rent, EMI, savings goal → POST /user/setup
+
+permissions.tsx: Ask for SMS & notifications (mock for hackathon) → navigate to (tabs)
+
+3. Home Tab ((tabs)/home.tsx)
+
+Top Card: “Today’s Safe Save” (GET /safe-save) with High/Med/Low confidence indicator
+
+Chart: Weekly savings vs. goal (GET /transactions/week)
+
+Impact Card: “You’ll reach ₹X in Y months sooner” (GET /projection)
+
+Quick Actions:
+
+Save Now → POST /transactions/add
+
+Pause Saving → PATCH /saving/pause
+
+Generate Fresh Data → POST /transactions/generate-fresh
+
+4. Transactions Tab
+
+Transaction list (GET /transactions)
+
+Categories: Income / Essential / Discretionary / Debt (icon per category)
+
+Edit category → PUT /transactions/:id
+
+Pull-to-refresh → Regenerates fake transactions
+
+5. Planner Tab
+
+Monthly projection chart (GET /projection)
+
+Editable budget sliders (GET & PUT /budget)
+
+Emergency fund tracker
+
+6. Learn Tab
+
+Financial tips cards (GET /tips?lang=en)
+
+Regional videos (static URLs)
+
+Fraud prevention ML categorization (POST /categorize-merchant → Hugging Face model)
+
+Backend API Specification (Node.js + Express)
+User & Setup
+
+POST /user/setup → Save user profile & generate initial transactions
+
+GET /user → Get profile
+
+Transactions
+
+GET /transactions → All transactions (fake generator if empty)
+
+POST /transactions/add → Add manual transaction
+
+PUT /transactions/:id → Update category
+
+POST /transactions/generate-fresh → New 20–25 unique transactions
+
+Analytics & AI
+
+GET /transactions/week → Group last 7 days for charts
+
+GET /projection → Uses Prophet to forecast savings goal achievement
+
+GET /safe-save → Uses rule-based + logistic regression model to suggest daily save amount
+
+POST /categorize-merchant → Uses Hugging Face zero-shot classification to guess merchant type
+
+Budget & Education
+
+GET /budget → Current budget allocations
+
+PUT /budget → Update budget
+
+GET /tips?lang=en → ML-generated or static financial tips in given language
+
+ML Scripts & Where They’re Used
+1. Logistic Regression – Safe Save Recommendation
+
+File: /ml/safeSaveModel.py
+
+Purpose: Predict saveable amount based on today’s spend, recurring expenses
+
+Used in: GET /safe-save
+
+2. Prophet Forecast – Goal Projection
+
+File: /ml/goalForecast.py
+
+Purpose: Predict when user will hit savings goal based on transaction history
+
+Used in: GET /projection
+
+3. Hugging Face Zero-shot Classifier – Merchant Categorization
+
+File: /ml/merchantCategorizer.py
+
+Purpose: Categorize merchants into “Essential”, “Discretionary”, “Debt”, “Income”
+
+Used in: POST /categorize-merchant
+
+Frontend Integration with APIs
+
+Axios instance with baseURL auto-detects:
+
+DEV: http://<local-ip>:3000
+
+PROD: from .env
+
+All API calls in /services/api.ts
+
+ML endpoints called like any other API endpoint
