@@ -159,17 +159,17 @@ export default function PlannerScreen() {
         analyticsAPI.getGoalPlanning(mockUserId),
       ]);
 
-      if (recData.success) {
+      if (recData?.success && recData.recommendations) {
         setRecommendations(recData.recommendations);
         setProjections(recData.projections);
       }
-      if (portfolioData.success) {
+      if (portfolioData?.success && portfolioData.allocation) {
         setPortfolioAllocation(portfolioData.allocation);
       }
-      if (comparisonData.success) {
+      if (comparisonData?.success && comparisonData.comparison) {
         setInvestmentComparison(comparisonData.comparison);
       }
-      if (goalData.success) {
+      if (goalData?.success && goalData.goal_planning) {
         setGoalPlanning(goalData.goal_planning);
       }
     } catch (error) {
@@ -181,13 +181,13 @@ export default function PlannerScreen() {
   };
 
   const renderTodaysPlan = () => {
-    if (!recommendations) return null;
+    if (!recommendations || !recommendations.totalInvestment || !recommendations.allocation) return null;
 
-    const dailySave = recommendations.totalInvestment / 30;
-    const schemes = Object.entries(recommendations.allocation).map(([key, value]: [string, any]) => ({
-      name: value.scheme,
-      amount: value.amount / 30,
-      percentage: value.percentage,
+    const dailySave = (recommendations.totalInvestment || 0) / 30;
+    const schemes = Object.entries(recommendations.allocation || {}).map(([key, value]: [string, any]) => ({
+      name: value?.scheme || 'Investment',
+      amount: (value?.amount || 0) / 30,
+      percentage: value?.percentage || 0,
     }));
 
     return (
@@ -215,11 +215,11 @@ export default function PlannerScreen() {
   };
 
   const renderRecommendations = () => {
-    if (!recommendations) return <ActivityIndicator size="large" color="#006B3F" />;
+    if (!recommendations || !recommendations.allocation) return <ActivityIndicator size="large" color="#006B3F" />;
 
-    const allocationData = Object.entries(recommendations.allocation).map(([key, value]: [string, any]) => ({
-      name: value.scheme,
-      population: value.percentage,
+    const allocationData = Object.entries(recommendations.allocation || {}).map(([key, value]: [string, any]) => ({
+      name: value?.scheme || 'Investment',
+      population: value?.percentage || 0,
       color: getSchemeColor(key),
       legendFontColor: '#333333',
       legendFontSize: 12,
@@ -231,9 +231,9 @@ export default function PlannerScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎯 Your Investment Profile</Text>
           <View style={styles.profileCard}>
-            <Text style={styles.profileTitle}>Risk Tolerance: {recommendations.risk_profile.toUpperCase()}</Text>
+            <Text style={styles.profileTitle}>Risk Tolerance: {(recommendations.risk_profile || 'moderate').toUpperCase()}</Text>
             <Text style={styles.profileDescription}>
-              {getRiskDescription(recommendations.risk_profile)}
+              {getRiskDescription(recommendations.risk_profile || 'moderate')}
             </Text>
           </View>
         </View>
@@ -258,13 +258,13 @@ export default function PlannerScreen() {
         {/* Investment Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💰 Investment Breakdown</Text>
-          {Object.entries(recommendations.allocation).map(([key, value]: [string, any]) => (
+          {Object.entries(recommendations.allocation || {}).map(([key, value]: [string, any]) => (
             <View key={key} style={styles.investmentCard}>
               <View style={styles.investmentHeader}>
-                <Text style={styles.investmentName}>{value.scheme}</Text>
-                <Text style={styles.investmentPercentage}>{value.percentage}%</Text>
+                <Text style={styles.investmentName}>{value?.scheme || 'Investment'}</Text>
+                <Text style={styles.investmentPercentage}>{value?.percentage || 0}%</Text>
               </View>
-              <Text style={styles.investmentAmount}>₹{value.amount.toLocaleString()}/month</Text>
+              <Text style={styles.investmentAmount}>₹{(value?.amount || 0).toLocaleString()}/month</Text>
               <Text style={styles.investmentDescription}>
                 {getSchemeDescription(key)}
               </Text>
@@ -280,7 +280,7 @@ export default function PlannerScreen() {
             <Text style={styles.taxDescription}>
               Save up to ₹46,800 in taxes annually by investing ₹1.5 lakh in:
             </Text>
-            {recommendations.tax_saving_schemes.map((scheme, index) => (
+            {(recommendations.tax_saving_schemes || []).map((scheme, index) => (
               <Text key={index} style={styles.taxScheme}>• {scheme}</Text>
             ))}
           </View>
@@ -292,239 +292,44 @@ export default function PlannerScreen() {
   const renderProjections = () => {
     if (!projections) return <ActivityIndicator size="large" color="#006B3F" />;
 
-    const years = Object.keys(projections).map(key => parseInt(key.split('_')[1]));
-    const values = years.map(year => projections[`year_${year}`].total_value);
-    const investments = years.map(year => projections[`year_${year}`].investment_amount);
-
-    const lineData = {
-      labels: years.map(y => `${y}Y`),
-      datasets: [
-        {
-          data: values,
-          color: (opacity = 1) => `rgba(0, 107, 63, ${opacity})`,
-          strokeWidth: 3,
-        },
-        {
-          data: investments,
-          color: (opacity = 1) => `rgba(255, 159, 64, ${opacity})`,
-          strokeWidth: 2,
-        },
-      ],
-      legend: ['With Returns', 'Investment Only'],
-    };
-
-    return (
-      <ScrollView style={styles.tabContent}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📈 Growth Projections</Text>
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={lineData}
-              width={width - 40}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
+    try {
+      const years = Object.keys(projections || {}).map(key => parseInt(key.split('_')[1])).filter(year => !isNaN(year));
+      
+      if (years.length === 0) {
+        return (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No projection data available</Text>
           </View>
-        </View>
+        );
+      }
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎯 Year-wise Breakdown</Text>
-          {years.map(year => {
-            const data = projections[`year_${year}`];
-            return (
-              <View key={year} style={styles.projectionCard}>
-                <Text style={styles.projectionYear}>Year {year}</Text>
-                <View style={styles.projectionRow}>
-                  <Text style={styles.projectionLabel}>Total Value:</Text>
-                  <Text style={styles.projectionValue}>₹{data.total_value.toLocaleString()}</Text>
-                </View>
-                <View style={styles.projectionRow}>
-                  <Text style={styles.projectionLabel}>Invested:</Text>
-                  <Text style={styles.projectionValue}>₹{data.investment_amount.toLocaleString()}</Text>
-                </View>
-                <View style={styles.projectionRow}>
-                  <Text style={styles.projectionLabel}>Returns:</Text>
-                  <Text style={styles.projectionGain}>₹{data.returns.toLocaleString()}</Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    );
-  };
+      const values = years.map(year => projections[`year_${year}`]?.total_value || 0);
+      const investments = years.map(year => projections[`year_${year}`]?.investment_amount || 0);
 
-  const renderComparison = () => {
-    if (!investmentComparison) return <ActivityIndicator size="large" color="#006B3F" />;
+      const lineData = {
+        labels: years.map(y => `${y}Y`),
+        datasets: [
+          {
+            data: values,
+            color: (opacity = 1) => `rgba(0, 107, 63, ${opacity})`,
+            strokeWidth: 3,
+          },
+          {
+            data: investments,
+            color: (opacity = 1) => `rgba(255, 159, 64, ${opacity})`,
+            strokeWidth: 2,
+          },
+        ],
+        legend: ['With Returns', 'Investment Only'],
+      };
 
-    const comparisonData = Object.values(investmentComparison).map((option, index) => ({
-      name: option.name.split(' ')[0],
-      value: option.final_amount,
-      color: getComparisonColor(index),
-    }));
-
-    const barData = {
-      labels: comparisonData.map(item => item.name),
-      datasets: [{
-        data: comparisonData.map(item => item.value),
-      }],
-    };
-
-    return (
-      <ScrollView style={styles.tabContent}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚖️ Investment Comparison</Text>
-          <Text style={styles.comparisonSubtitle}>
-            ₹{comparisonAmount.toLocaleString()} invested for {comparisonYears} years
-          </Text>
-          
-          <View style={styles.chartContainer}>
-            <BarChart
-              data={barData}
-              width={width - 40}
-              height={220}
-              chartConfig={{
-                ...chartConfig,
-                barPercentage: 0.7,
-              }}
-              style={styles.chart}
-              yAxisLabel="₹"
-              yAxisSuffix=""
-              showValuesOnTopOfBars
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Detailed Comparison</Text>
-          {Object.entries(investmentComparison).map(([key, option]) => (
-            <View key={key} style={styles.comparisonCard}>
-              <Text style={styles.comparisonName}>{option.name}</Text>
-              <View style={styles.comparisonDetails}>
-                <Text style={styles.comparisonFinal}>₹{option.final_amount.toLocaleString()}</Text>
-                <Text style={styles.comparisonReturn}>{option.annual_return}% p.a.</Text>
-              </View>
-              <View style={styles.comparisonMeta}>
-                <Text style={styles.comparisonRisk}>Risk: {option.risk_level}</Text>
-                <Text style={styles.comparisonLiquidity}>Liquidity: {option.liquidity}</Text>
-                {option.tax_benefit && <Text style={styles.comparisonTax}>Tax Benefit ✓</Text>}
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    );
-  };
-
-  const renderGoalPlanning = () => {
-    if (!goalPlanning) return <ActivityIndicator size="large" color="#006B3F" />;
-
-    // Add safety checks for all data
-    const userProfile = goalPlanning.user_profile || {};
-    const savingsOnlyPlan = goalPlanning.savings_only_plan || {};
-    const savingsInvestingPlan = goalPlanning.savings_investing_plan || {};
-    const taxOptimization = goalPlanning.tax_optimization || {};
-    const timeSaved = goalPlanning.time_saved || {};
-    const recommendedFirstStep = goalPlanning.recommended_first_step || {};
-    const summary = goalPlanning.summary || {};
-    const timelineComparison = goalPlanning.timeline_comparison || { savings_only: [], savings_investing: [] };
-
-    // Safe data for charts
-    const chartData = timelineComparison.savings_only?.length > 0 && timelineComparison.savings_investing?.length > 0;
-    
-    const timelineData = chartData ? {
-      labels: timelineComparison.savings_only.slice(0, 24).map((_, index) => 
-        index % 6 === 0 ? `${Math.floor(index / 12)}Y${index % 12}M` : ''
-      ),
-      datasets: [
-        {
-          data: timelineComparison.savings_only.slice(0, 24).map(item => item.total || 0),
-          color: (opacity = 1) => `rgba(255, 159, 64, ${opacity})`,
-          strokeWidth: 2,
-        },
-        {
-          data: timelineComparison.savings_investing.slice(0, 24).map(item => item.total || 0),
-          color: (opacity = 1) => `rgba(0, 107, 63, ${opacity})`,
-          strokeWidth: 3,
-        },
-      ],
-      legend: ['Savings Only', 'Savings + Investing'],
-    } : null;
-
-    return (
-      <ScrollView style={styles.tabContent}>
-        {/* User Profile & Disposable Income */}
-        <View style={styles.profileSummaryCard}>
-          <Text style={styles.profileSummaryTitle}>💰 Your Financial Profile</Text>
-          <View style={styles.profileGrid}>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Monthly Income</Text>
-              <Text style={styles.profileValue}>₹{(userProfile.monthly_income || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Monthly Expenses</Text>
-              <Text style={styles.profileValue}>₹{(userProfile.monthly_expenses || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Disposable Income</Text>
-              <Text style={styles.profileValueHighlight}>₹{(userProfile.disposable_income || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Savings Goal</Text>
-              <Text style={styles.profileValue}>₹{(userProfile.savings_goal || 0).toLocaleString()}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Plan Comparison */}
-        <View style={styles.planComparisonCard}>
-          <Text style={styles.planComparisonTitle}>📊 Savings vs Investing Comparison</Text>
-          
-          <View style={styles.plansContainer}>
-            {/* Savings Only Plan */}
-            <View style={styles.planCard}>
-              <Text style={styles.planTitle}>💰 Savings Only Plan</Text>
-              <Text style={styles.planAmount}>₹{(savingsOnlyPlan.monthly_amount || 0).toLocaleString()}/month</Text>
-              <Text style={styles.planDuration}>
-                {savingsOnlyPlan.years || 0} years, {savingsOnlyPlan.remaining_months || 0} months
-              </Text>
-              <Text style={styles.planNote}>
-                {savingsOnlyPlan.achievable ? '✅ Achievable' : '❌ Too slow'}
-              </Text>
-            </View>
-
-            {/* Savings + Investing Plan */}
-            <View style={[styles.planCard, styles.investingPlan]}>
-              <Text style={styles.planTitle}>🚀 Savings + Investing Plan</Text>
-              <View style={styles.planBreakdown}>
-                <Text style={styles.planSubAmount}>Savings: ₹{(savingsInvestingPlan.monthly_savings || 0).toLocaleString()}</Text>
-                <Text style={styles.planSubAmount}>Investing: ₹{(savingsInvestingPlan.monthly_investment || 0).toLocaleString()}</Text>
-              </View>
-              <Text style={styles.planAmount}>₹{(savingsInvestingPlan.total_monthly || 0).toLocaleString()}/month total</Text>
-              <Text style={styles.planDuration}>
-                {savingsInvestingPlan.years || 0} years, {savingsInvestingPlan.remaining_months || 0} months
-              </Text>
-              <Text style={styles.planNote}>⚡ {timeSaved.percentage_faster || 0}% faster</Text>
-            </View>
-          </View>
-
-          {/* Time Saved Highlight */}
-          <View style={styles.timeSavedCard}>
-            <Text style={styles.timeSavedTitle}>⏰ Time Saved by Investing</Text>
-            <Text style={styles.timeSavedAmount}>{summary.time_saved || 'Calculating...'}</Text>
-            <Text style={styles.timeSavedDescription}>{summary.key_benefit || 'Smart investing helps reach goals faster'}</Text>
-          </View>
-        </View>
-
-        {/* Timeline Comparison Chart */}
-        {chartData && timelineData && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>📈 Growth Timeline Comparison</Text>
+      return (
+        <ScrollView style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📈 Growth Projections</Text>
             <View style={styles.chartContainer}>
               <LineChart
-                data={timelineData}
+                data={lineData}
                 width={width - 40}
                 height={220}
                 chartConfig={chartConfig}
@@ -532,90 +337,321 @@ export default function PlannerScreen() {
                 style={styles.chart}
               />
             </View>
-            <View style={styles.chartLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: '#FF9F40' }]} />
-                <Text style={styles.legendText}>Savings Only</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: '#006B3F' }]} />
-                <Text style={styles.legendText}>Savings + Investing</Text>
-              </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🎯 Year-wise Breakdown</Text>
+            {years.map(year => {
+              const data = projections[`year_${year}`] || {};
+              return (
+                <View key={year} style={styles.projectionCard}>
+                  <Text style={styles.projectionYear}>Year {year}</Text>
+                  <View style={styles.projectionRow}>
+                    <Text style={styles.projectionLabel}>Total Value:</Text>
+                    <Text style={styles.projectionValue}>₹{(data.total_value || 0).toLocaleString()}</Text>
+                  </View>
+                  <View style={styles.projectionRow}>
+                    <Text style={styles.projectionLabel}>Invested:</Text>
+                    <Text style={styles.projectionValue}>₹{(data.investment_amount || 0).toLocaleString()}</Text>
+                  </View>
+                  <View style={styles.projectionRow}>
+                    <Text style={styles.projectionLabel}>Returns:</Text>
+                    <Text style={styles.projectionGain}>₹{(data.returns || 0).toLocaleString()}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      );
+    } catch (error) {
+      console.error('Error rendering projections:', error);
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>Error loading projections</Text>
+        </View>
+      );
+    }
+  };
+
+  const renderComparison = () => {
+    if (!investmentComparison) return <ActivityIndicator size="large" color="#006B3F" />;
+
+    try {
+      const comparisonData = Object.values(investmentComparison || {}).map((option, index) => ({
+        name: (option?.name || 'Investment').split(' ')[0],
+        value: option?.final_amount || 0,
+        color: getComparisonColor(index),
+      }));
+
+      const barData = {
+        labels: comparisonData.map(item => item.name),
+        datasets: [{
+          data: comparisonData.map(item => item.value),
+        }],
+      };
+
+      return (
+        <ScrollView style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚖️ Investment Comparison</Text>
+            <Text style={styles.comparisonSubtitle}>
+              ₹{comparisonAmount.toLocaleString()} invested for {comparisonYears} years
+            </Text>
+            
+            <View style={styles.chartContainer}>
+              <BarChart
+                data={barData}
+                width={width - 40}
+                height={220}
+                chartConfig={{
+                  ...chartConfig,
+                  barPercentage: 0.7,
+                }}
+                style={styles.chart}
+                yAxisLabel="₹"
+                yAxisSuffix=""
+                showValuesOnTopOfBars
+              />
             </View>
           </View>
-        )}
 
-        {/* Investment Options */}
-        {savingsInvestingPlan.investment_options && savingsInvestingPlan.investment_options.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💼 Recommended Investment Mix</Text>
-            <Text style={styles.riskProfileText}>
-              Risk Profile: {(savingsInvestingPlan.risk_profile || 'moderate').toUpperCase()} 
-              ({savingsInvestingPlan.expected_return || 8}% expected return)
-            </Text>
-            {savingsInvestingPlan.investment_options.map((option, index) => (
-              <View key={index} style={styles.investmentOptionCard}>
-                <View style={styles.optionHeader}>
-                  <Text style={styles.optionName}>{option.name || 'Investment Option'}</Text>
-                  <Text style={styles.optionAllocation}>{option.allocation || '0%'}</Text>
+            <Text style={styles.sectionTitle}>📋 Detailed Comparison</Text>
+            {Object.entries(investmentComparison || {}).map(([key, option]) => (
+              <View key={key} style={styles.comparisonCard}>
+                <Text style={styles.comparisonName}>{option?.name || 'Investment Option'}</Text>
+                <View style={styles.comparisonDetails}>
+                  <Text style={styles.comparisonFinal}>₹{(option?.final_amount || 0).toLocaleString()}</Text>
+                  <Text style={styles.comparisonReturn}>{option?.annual_return || 0}% p.a.</Text>
                 </View>
-                <Text style={styles.optionAmount}>₹{(option.monthly_amount || 0).toLocaleString()}/month</Text>
-                <Text style={styles.optionReturn}>Expected: {option.expected_return || '0%'} | Risk: {option.risk || 'Medium'}</Text>
-                <Text style={styles.optionDescription}>{option.description || 'Investment description'}</Text>
+                <View style={styles.comparisonMeta}>
+                  <Text style={styles.comparisonRisk}>Risk: {option?.risk_level || 'Medium'}</Text>
+                  <Text style={styles.comparisonLiquidity}>Liquidity: {option?.liquidity || 'Medium'}</Text>
+                  {option?.tax_benefit && <Text style={styles.comparisonTax}>Tax Benefit ✓</Text>}
+                </View>
               </View>
             ))}
           </View>
-        )}
+        </ScrollView>
+      );
+    } catch (error) {
+      console.error('Error rendering comparison:', error);
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>Error loading comparison data</Text>
+        </View>
+      );
+    }
+  };
 
-        {/* Tax Optimization */}
-        <View style={styles.taxOptimizationCard}>
-          <Text style={styles.taxTitle}>💸 Tax Optimization Benefits</Text>
-          <View style={styles.taxStats}>
-            <View style={styles.taxStat}>
-              <Text style={styles.taxLabel}>Annual Investment</Text>
-              <Text style={styles.taxValue}>₹{(taxOptimization.annual_investment || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.taxStat}>
-              <Text style={styles.taxLabel}>Tax Saved</Text>
-              <Text style={styles.taxValueHighlight}>₹{(taxOptimization.total_tax_saved || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.taxStat}>
-              <Text style={styles.taxLabel}>Net Cost</Text>
-              <Text style={styles.taxValue}>₹{(taxOptimization.net_investment_cost || 0).toLocaleString()}</Text>
-            </View>
-            <View style={styles.taxStat}>
-              <Text style={styles.taxLabel}>Effective Boost</Text>
-              <Text style={styles.taxValueHighlight}>{taxOptimization.effective_return_boost || '+0%'}</Text>
+  const renderGoalPlanning = () => {
+    if (!goalPlanning) return <ActivityIndicator size="large" color="#006B3F" />;
+
+    try {
+      // Add safety checks for all data
+      const userProfile = goalPlanning.user_profile || {};
+      const savingsOnlyPlan = goalPlanning.savings_only_plan || {};
+      const savingsInvestingPlan = goalPlanning.savings_investing_plan || {};
+      const taxOptimization = goalPlanning.tax_optimization || {};
+      const timeSaved = goalPlanning.time_saved || {};
+      const recommendedFirstStep = goalPlanning.recommended_first_step || {};
+      const summary = goalPlanning.summary || {};
+      const timelineComparison = goalPlanning.timeline_comparison || { savings_only: [], savings_investing: [] };
+
+      // Safe data for charts
+      const chartData = timelineComparison.savings_only?.length > 0 && timelineComparison.savings_investing?.length > 0;
+      
+      const timelineData = chartData ? {
+        labels: timelineComparison.savings_only.slice(0, 24).map((_, index) => 
+          index % 6 === 0 ? `${Math.floor(index / 12)}Y${index % 12}M` : ''
+        ),
+        datasets: [
+          {
+            data: timelineComparison.savings_only.slice(0, 24).map(item => item?.total || 0),
+            color: (opacity = 1) => `rgba(255, 159, 64, ${opacity})`,
+            strokeWidth: 2,
+          },
+          {
+            data: timelineComparison.savings_investing.slice(0, 24).map(item => item?.total || 0),
+            color: (opacity = 1) => `rgba(0, 107, 63, ${opacity})`,
+            strokeWidth: 3,
+          },
+        ],
+        legend: ['Savings Only', 'Savings + Investing'],
+      } : null;
+
+      return (
+        <ScrollView style={styles.tabContent}>
+          {/* User Profile & Disposable Income */}
+          <View style={styles.profileSummaryCard}>
+            <Text style={styles.profileSummaryTitle}>💰 Your Financial Profile</Text>
+            <View style={styles.profileGrid}>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Monthly Income</Text>
+                <Text style={styles.profileValue}>₹{(userProfile.monthly_income || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Monthly Expenses</Text>
+                <Text style={styles.profileValue}>₹{(userProfile.monthly_expenses || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Disposable Income</Text>
+                <Text style={styles.profileValueHighlight}>₹{(userProfile.disposable_income || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.profileItem}>
+                <Text style={styles.profileLabel}>Savings Goal</Text>
+                <Text style={styles.profileValue}>₹{(userProfile.savings_goal || 0).toLocaleString()}</Text>
+              </View>
             </View>
           </View>
-          
-          {taxOptimization.recommendations && taxOptimization.recommendations.length > 0 && (
-            <View style={styles.taxRecommendations}>
-              <Text style={styles.taxRecommendationsTitle}>💡 Tax-Saving Tips:</Text>
-              {taxOptimization.recommendations.map((rec, index) => (
-                <Text key={index} style={styles.taxRecommendation}>• {rec}</Text>
+
+          {/* Plan Comparison */}
+          <View style={styles.planComparisonCard}>
+            <Text style={styles.planComparisonTitle}>📊 Savings vs Investing Comparison</Text>
+            
+            <View style={styles.plansContainer}>
+              {/* Savings Only Plan */}
+              <View style={styles.planCard}>
+                <Text style={styles.planTitle}>💰 Savings Only Plan</Text>
+                <Text style={styles.planAmount}>₹{(savingsOnlyPlan.monthly_amount || 0).toLocaleString()}/month</Text>
+                <Text style={styles.planDuration}>
+                  {savingsOnlyPlan.years || 0} years, {savingsOnlyPlan.remaining_months || 0} months
+                </Text>
+                <Text style={styles.planNote}>
+                  {savingsOnlyPlan.achievable ? '✅ Achievable' : '❌ Too slow'}
+                </Text>
+              </View>
+
+              {/* Savings + Investing Plan */}
+              <View style={[styles.planCard, styles.investingPlan]}>
+                <Text style={styles.planTitle}>🚀 Savings + Investing Plan</Text>
+                <View style={styles.planBreakdown}>
+                  <Text style={styles.planSubAmount}>Savings: ₹{(savingsInvestingPlan.monthly_savings || 0).toLocaleString()}</Text>
+                  <Text style={styles.planSubAmount}>Investing: ₹{(savingsInvestingPlan.monthly_investment || 0).toLocaleString()}</Text>
+                </View>
+                <Text style={styles.planAmount}>₹{(savingsInvestingPlan.total_monthly || 0).toLocaleString()}/month total</Text>
+                <Text style={styles.planDuration}>
+                  {savingsInvestingPlan.years || 0} years, {savingsInvestingPlan.remaining_months || 0} months
+                </Text>
+                <Text style={styles.planNote}>⚡ {timeSaved.percentage_faster || 0}% faster</Text>
+              </View>
+            </View>
+
+            {/* Time Saved Highlight */}
+            <View style={styles.timeSavedCard}>
+              <Text style={styles.timeSavedTitle}>⏰ Time Saved by Investing</Text>
+              <Text style={styles.timeSavedAmount}>{summary.time_saved || 'Calculating...'}</Text>
+              <Text style={styles.timeSavedDescription}>{summary.key_benefit || 'Smart investing helps reach goals faster'}</Text>
+            </View>
+          </View>
+
+          {/* Timeline Comparison Chart */}
+          {chartData && timelineData && (
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>📈 Growth Timeline Comparison</Text>
+              <View style={styles.chartContainer}>
+                <LineChart
+                  data={timelineData}
+                  width={width - 40}
+                  height={220}
+                  chartConfig={chartConfig}
+                  bezier
+                  style={styles.chart}
+                />
+              </View>
+              <View style={styles.chartLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#FF9F40' }]} />
+                  <Text style={styles.legendText}>Savings Only</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#006B3F' }]} />
+                  <Text style={styles.legendText}>Savings + Investing</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Investment Options */}
+          {savingsInvestingPlan.investment_options && savingsInvestingPlan.investment_options.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>💼 Recommended Investment Mix</Text>
+              <Text style={styles.riskProfileText}>
+                Risk Profile: {(savingsInvestingPlan.risk_profile || 'moderate').toUpperCase()} 
+                ({savingsInvestingPlan.expected_return || 8}% expected return)
+              </Text>
+              {savingsInvestingPlan.investment_options.map((option, index) => (
+                <View key={index} style={styles.investmentOptionCard}>
+                  <View style={styles.optionHeader}>
+                    <Text style={styles.optionName}>{option?.name || 'Investment Option'}</Text>
+                    <Text style={styles.optionAllocation}>{option?.allocation || '0%'}</Text>
+                  </View>
+                  <Text style={styles.optionAmount}>₹{(option?.monthly_amount || 0).toLocaleString()}/month</Text>
+                  <Text style={styles.optionReturn}>Expected: {option?.expected_return || '0%'} | Risk: {option?.risk || 'Medium'}</Text>
+                  <Text style={styles.optionDescription}>{option?.description || 'Investment description'}</Text>
+                </View>
               ))}
             </View>
           )}
-        </View>
 
-        {/* Recommended First Step */}
-        <View style={styles.firstStepCard}>
-          <Text style={styles.firstStepTitle}>🎯 Your Recommended First Step</Text>
-          <Text style={styles.firstStepAction}>{recommendedFirstStep.action || 'Start Investing'}</Text>
-          <Text style={styles.firstStepAmount}>{recommendedFirstStep.amount || '₹5,000/month'}</Text>
-          <Text style={styles.firstStepDescription}>{recommendedFirstStep.description || 'Begin your investment journey'}</Text>
-          <Text style={styles.firstStepPriority}>Priority: {recommendedFirstStep.priority || 'Medium'}</Text>
-        </View>
+          {/* Tax Optimization */}
+          <View style={styles.taxOptimizationCard}>
+            <Text style={styles.taxTitle}>💸 Tax Optimization Benefits</Text>
+            <View style={styles.taxStats}>
+              <View style={styles.taxStat}>
+                <Text style={styles.taxLabel}>Annual Investment</Text>
+                <Text style={styles.taxValue}>₹{(taxOptimization.annual_investment || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.taxStat}>
+                <Text style={styles.taxLabel}>Tax Saved</Text>
+                <Text style={styles.taxValueHighlight}>₹{(taxOptimization.total_tax_saved || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.taxStat}>
+                <Text style={styles.taxLabel}>Net Cost</Text>
+                <Text style={styles.taxValue}>₹{(taxOptimization.net_investment_cost || 0).toLocaleString()}</Text>
+              </View>
+              <View style={styles.taxStat}>
+                <Text style={styles.taxLabel}>Effective Boost</Text>
+                <Text style={styles.taxValueHighlight}>{taxOptimization.effective_return_boost || '+0%'}</Text>
+              </View>
+            </View>
+            
+            {taxOptimization.recommendations && taxOptimization.recommendations.length > 0 && (
+              <View style={styles.taxRecommendations}>
+                <Text style={styles.taxRecommendationsTitle}>💡 Tax-Saving Tips:</Text>
+                {taxOptimization.recommendations.map((rec, index) => (
+                  <Text key={index} style={styles.taxRecommendation}>• {rec}</Text>
+                ))}
+              </View>
+            )}
+          </View>
 
-        {/* Friendly Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>🎉 Summary</Text>
-          <Text style={styles.summaryMotivation}>{summary.motivation || '💡 Every step towards financial freedom counts!'}</Text>
-          <Text style={styles.summaryNextStep}>{summary.next_step || 'Start with small, consistent investments'}</Text>
+          {/* Recommended First Step */}
+          <View style={styles.firstStepCard}>
+            <Text style={styles.firstStepTitle}>🎯 Your Recommended First Step</Text>
+            <Text style={styles.firstStepAction}>{recommendedFirstStep.action || 'Start Investing'}</Text>
+            <Text style={styles.firstStepAmount}>{recommendedFirstStep.amount || '₹5,000/month'}</Text>
+            <Text style={styles.firstStepDescription}>{recommendedFirstStep.description || 'Begin your investment journey'}</Text>
+            <Text style={styles.firstStepPriority}>Priority: {recommendedFirstStep.priority || 'Medium'}</Text>
+          </View>
+
+          {/* Friendly Summary */}
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>🎉 Summary</Text>
+            <Text style={styles.summaryMotivation}>{summary.motivation || '💡 Every step towards financial freedom counts!'}</Text>
+            <Text style={styles.summaryNextStep}>{summary.next_step || 'Start with small, consistent investments'}</Text>
+          </View>
+        </ScrollView>
+      );
+    } catch (error) {
+      console.error('Error rendering goal planning:', error);
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>Error loading goal planning data</Text>
         </View>
-      </ScrollView>
-    );
+      );
+    }
   };
 
   if (loading) {
@@ -697,7 +733,7 @@ function getRiskDescription(riskProfile: string): string {
     moderate: 'Balanced approach with moderate risk and steady growth. Good for medium-term goals.',
     conservative: 'Lower risk with guaranteed returns. Ideal for capital preservation.',
   };
-  return descriptions[riskProfile as keyof typeof descriptions] || '';
+  return descriptions[riskProfile as keyof typeof descriptions] || 'Balanced approach with moderate risk and steady growth.';
 }
 
 function getSchemeDescription(scheme: string): string {
@@ -708,7 +744,7 @@ function getSchemeDescription(scheme: string): string {
     nps: 'Retirement-focused with 10% expected returns. Tax benefits.',
     gold_etf: 'Digital gold for portfolio diversification. 8% expected returns.',
   };
-  return descriptions[scheme as keyof typeof descriptions] || '';
+  return descriptions[scheme as keyof typeof descriptions] || 'Investment option for portfolio diversification.';
 }
 
 const styles = StyleSheet.create({
@@ -725,6 +761,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666666',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
   },
   header: {
     padding: 20,
@@ -864,6 +911,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  chartCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#003153',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   chart: {
     borderRadius: 16,
@@ -1237,12 +1303,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FFD54F',
-  },
-  taxTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#003153',
-    marginBottom: 16,
   },
   taxStats: {
     flexDirection: 'row',
