@@ -184,18 +184,18 @@ export default function HomeScreen() {
           </View>
 
           {/* Today's Save & Invest Plan Card */}
-          {investmentPlan && (
+          {investmentPlan && investmentPlan.totalInvestment && investmentPlan.allocation && (
             <View style={styles.investmentCard}>
               <Text style={styles.cardTitle}>💡 Today's Save & Invest Plan</Text>
               <Text style={styles.dailyTotal}>
-                ₹{Math.round(investmentPlan.totalInvestment / 30)}/day total
+                ₹{Math.round((investmentPlan.totalInvestment || 0) / 30)}/day total
               </Text>
               
               <View style={styles.investmentBreakdown}>
-                {Object.entries(investmentPlan.allocation).map(([key, value]: [string, any], index) => (
+                {Object.entries(investmentPlan.allocation || {}).map(([key, value]: [string, any], index) => (
                   <View key={index} style={styles.investmentRow}>
-                    <Text style={styles.investmentScheme}>{value.scheme}</Text>
-                    <Text style={styles.investmentAmount}>₹{Math.round(value.amount / 30)}/day</Text>
+                    <Text style={styles.investmentScheme}>{value?.scheme || 'Investment'}</Text>
+                    <Text style={styles.investmentAmount}>₹{Math.round((value?.amount || 0) / 30)}/day</Text>
                   </View>
                 ))}
               </View>
@@ -203,7 +203,7 @@ export default function HomeScreen() {
               <View style={styles.investmentFooter}>
                 <View style={styles.investmentBenefit}>
                   <Text style={styles.benefitText}>📈 Tax savings up to ₹46,800/year</Text>
-                  <Text style={styles.benefitText}>📊 Expected growth: {investmentPlan.risk_profile} risk</Text>
+                  <Text style={styles.benefitText}>📊 Expected growth: {investmentPlan.risk_profile || 'balanced'} risk</Text>
                 </View>
                 <TouchableOpacity style={styles.learnMoreButton}>
                   <Text style={styles.learnMoreText}>Learn More →</Text>

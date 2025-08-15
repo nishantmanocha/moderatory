@@ -124,7 +124,7 @@ export default function TransactionsScreen() {
   };
 
   const renderSpendingOverview = () => {
-    if (!insights || insights.category_breakdown.length === 0) {
+    if (!insights || !insights.category_breakdown || insights.category_breakdown.length === 0) {
       return (
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>No spending data available</Text>
@@ -133,8 +133,8 @@ export default function TransactionsScreen() {
     }
 
     const pieData = insights.category_breakdown.map((category, index) => ({
-      name: category.category,
-      population: category.total_amount,
+      name: category.category || 'Unknown',
+      population: category.total_amount || 0,
       color: getCategoryColor(index),
       legendFontColor: '#333333',
       legendFontSize: 12,
@@ -148,11 +148,11 @@ export default function TransactionsScreen() {
           <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Total Spent</Text>
-              <Text style={styles.summaryValue}>₹{insights.total_spent.toLocaleString()}</Text>
+              <Text style={styles.summaryValue}>₹{(insights.total_spent || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Daily Average</Text>
-              <Text style={styles.summaryValue}>₹{Math.round(insights.daily_average)}</Text>
+              <Text style={styles.summaryValue}>₹{Math.round(insights.daily_average || 0)}</Text>
             </View>
           </View>
         </View>
@@ -178,18 +178,18 @@ export default function TransactionsScreen() {
         <View style={styles.categorySection}>
           <Text style={styles.sectionTitle}>📋 Category Breakdown</Text>
           {insights.category_breakdown.map((category, index) => (
-            <View key={category.category} style={styles.categoryCard}>
+            <View key={category.category || index} style={styles.categoryCard}>
               <View style={styles.categoryHeader}>
                 <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryIcon}>{getCategoryIcon(category.category)}</Text>
+                  <Text style={styles.categoryIcon}>{getCategoryIcon(category.category || 'Unknown')}</Text>
                   <View style={styles.categoryDetails}>
-                    <Text style={styles.categoryName}>{category.category}</Text>
-                    <Text style={styles.categoryCount}>{category.transaction_count} transactions</Text>
+                    <Text style={styles.categoryName}>{category.category || 'Unknown'}</Text>
+                    <Text style={styles.categoryCount}>{category.transaction_count || 0} transactions</Text>
                   </View>
                 </View>
                 <View style={styles.categoryAmount}>
-                  <Text style={styles.categoryTotal}>₹{category.total_amount.toLocaleString()}</Text>
-                  <Text style={styles.categoryPercentage}>{category.percentage}%</Text>
+                  <Text style={styles.categoryTotal}>₹{(category.total_amount || 0).toLocaleString()}</Text>
+                  <Text style={styles.categoryPercentage}>{category.percentage || '0'}%</Text>
                 </View>
               </View>
             </View>
@@ -200,7 +200,7 @@ export default function TransactionsScreen() {
   };
 
   const renderActionableTips = () => {
-    if (!insights || insights.recommendations.length === 0) {
+    if (!insights || !insights.recommendations || insights.recommendations.length === 0) {
       return (
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>No recommendations available</Text>
@@ -214,7 +214,7 @@ export default function TransactionsScreen() {
         <View style={styles.savingsCard}>
           <Text style={styles.savingsTitle}>💰 Potential Monthly Savings</Text>
           <Text style={styles.savingsAmount}>
-            ₹{insights.recommendations.reduce((sum, rec) => sum + rec.potential_savings, 0).toLocaleString()}
+            ₹{insights.recommendations.reduce((sum, rec) => sum + (rec.potential_savings || 0), 0).toLocaleString()}
           </Text>
           <Text style={styles.savingsDescription}>
             Based on your spending patterns, here's how you can save more:
@@ -229,13 +229,13 @@ export default function TransactionsScreen() {
               <View style={styles.recommendationHeader}>
                 <Text style={styles.recommendationIcon}>💡</Text>
                 <Text style={styles.recommendationType}>
-                  {recommendation.type.replace('_', ' ').toUpperCase()}
+                  {(recommendation.type || 'suggestion').replace('_', ' ').toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.recommendationMessage}>{recommendation.message}</Text>
+              <Text style={styles.recommendationMessage}>{recommendation.message || 'Consider optimizing your spending'}</Text>
               <View style={styles.recommendationFooter}>
                 <Text style={styles.potentialSaving}>
-                  Potential savings: ₹{recommendation.potential_savings.toLocaleString()}/month
+                  Potential savings: ₹{(recommendation.potential_savings || 0).toLocaleString()}/month
                 </Text>
               </View>
             </View>
@@ -243,16 +243,16 @@ export default function TransactionsScreen() {
         </View>
 
         {/* Top Spending Merchants */}
-        {insights.top_merchants.length > 0 && (
+        {insights.top_merchants && insights.top_merchants.length > 0 && (
           <View style={styles.merchantSection}>
             <Text style={styles.sectionTitle}>🏪 Top Spending Merchants</Text>
             {insights.top_merchants.slice(0, 5).map((merchant, index) => (
               <View key={index} style={styles.merchantCard}>
                 <View style={styles.merchantInfo}>
-                  <Text style={styles.merchantName}>{merchant.merchant}</Text>
-                  <Text style={styles.merchantCount}>{merchant.transaction_count} visits</Text>
+                  <Text style={styles.merchantName}>{merchant.merchant || 'Unknown Merchant'}</Text>
+                  <Text style={styles.merchantCount}>{merchant.transaction_count || 0} visits</Text>
                 </View>
-                <Text style={styles.merchantAmount}>₹{merchant.total_spent.toLocaleString()}</Text>
+                <Text style={styles.merchantAmount}>₹{(merchant.total_spent || 0).toLocaleString()}</Text>
               </View>
             ))}
           </View>

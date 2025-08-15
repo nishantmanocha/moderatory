@@ -421,24 +421,37 @@ export default function PlannerScreen() {
   const renderGoalPlanning = () => {
     if (!goalPlanning) return <ActivityIndicator size="large" color="#006B3F" />;
 
-    const timelineData = {
-      labels: goalPlanning.timeline_comparison.savings_only.slice(0, 24).map((_, index) => 
+    // Add safety checks for all data
+    const userProfile = goalPlanning.user_profile || {};
+    const savingsOnlyPlan = goalPlanning.savings_only_plan || {};
+    const savingsInvestingPlan = goalPlanning.savings_investing_plan || {};
+    const taxOptimization = goalPlanning.tax_optimization || {};
+    const timeSaved = goalPlanning.time_saved || {};
+    const recommendedFirstStep = goalPlanning.recommended_first_step || {};
+    const summary = goalPlanning.summary || {};
+    const timelineComparison = goalPlanning.timeline_comparison || { savings_only: [], savings_investing: [] };
+
+    // Safe data for charts
+    const chartData = timelineComparison.savings_only?.length > 0 && timelineComparison.savings_investing?.length > 0;
+    
+    const timelineData = chartData ? {
+      labels: timelineComparison.savings_only.slice(0, 24).map((_, index) => 
         index % 6 === 0 ? `${Math.floor(index / 12)}Y${index % 12}M` : ''
       ),
       datasets: [
         {
-          data: goalPlanning.timeline_comparison.savings_only.slice(0, 24).map(item => item.total),
+          data: timelineComparison.savings_only.slice(0, 24).map(item => item.total || 0),
           color: (opacity = 1) => `rgba(255, 159, 64, ${opacity})`,
           strokeWidth: 2,
         },
         {
-          data: goalPlanning.timeline_comparison.savings_investing.slice(0, 24).map(item => item.total),
+          data: timelineComparison.savings_investing.slice(0, 24).map(item => item.total || 0),
           color: (opacity = 1) => `rgba(0, 107, 63, ${opacity})`,
           strokeWidth: 3,
         },
       ],
       legend: ['Savings Only', 'Savings + Investing'],
-    };
+    } : null;
 
     return (
       <ScrollView style={styles.tabContent}>
@@ -448,19 +461,19 @@ export default function PlannerScreen() {
           <View style={styles.profileGrid}>
             <View style={styles.profileItem}>
               <Text style={styles.profileLabel}>Monthly Income</Text>
-              <Text style={styles.profileValue}>₹{goalPlanning.user_profile.monthly_income.toLocaleString()}</Text>
+              <Text style={styles.profileValue}>₹{(userProfile.monthly_income || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.profileItem}>
               <Text style={styles.profileLabel}>Monthly Expenses</Text>
-              <Text style={styles.profileValue}>₹{goalPlanning.user_profile.monthly_expenses.toLocaleString()}</Text>
+              <Text style={styles.profileValue}>₹{(userProfile.monthly_expenses || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.profileItem}>
               <Text style={styles.profileLabel}>Disposable Income</Text>
-              <Text style={styles.profileValueHighlight}>₹{goalPlanning.user_profile.disposable_income.toLocaleString()}</Text>
+              <Text style={styles.profileValueHighlight}>₹{(userProfile.disposable_income || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.profileItem}>
               <Text style={styles.profileLabel}>Savings Goal</Text>
-              <Text style={styles.profileValue}>₹{goalPlanning.user_profile.savings_goal.toLocaleString()}</Text>
+              <Text style={styles.profileValue}>₹{(userProfile.savings_goal || 0).toLocaleString()}</Text>
             </View>
           </View>
         </View>
@@ -473,12 +486,12 @@ export default function PlannerScreen() {
             {/* Savings Only Plan */}
             <View style={styles.planCard}>
               <Text style={styles.planTitle}>💰 Savings Only Plan</Text>
-              <Text style={styles.planAmount}>₹{goalPlanning.savings_only_plan.monthly_amount.toLocaleString()}/month</Text>
+              <Text style={styles.planAmount}>₹{(savingsOnlyPlan.monthly_amount || 0).toLocaleString()}/month</Text>
               <Text style={styles.planDuration}>
-                {goalPlanning.savings_only_plan.years} years, {goalPlanning.savings_only_plan.remaining_months} months
+                {savingsOnlyPlan.years || 0} years, {savingsOnlyPlan.remaining_months || 0} months
               </Text>
               <Text style={styles.planNote}>
-                {goalPlanning.savings_only_plan.achievable ? '✅ Achievable' : '❌ Too slow'}
+                {savingsOnlyPlan.achievable ? '✅ Achievable' : '❌ Too slow'}
               </Text>
             </View>
 
@@ -486,69 +499,73 @@ export default function PlannerScreen() {
             <View style={[styles.planCard, styles.investingPlan]}>
               <Text style={styles.planTitle}>🚀 Savings + Investing Plan</Text>
               <View style={styles.planBreakdown}>
-                <Text style={styles.planSubAmount}>Savings: ₹{goalPlanning.savings_investing_plan.monthly_savings.toLocaleString()}</Text>
-                <Text style={styles.planSubAmount}>Investing: ₹{goalPlanning.savings_investing_plan.monthly_investment.toLocaleString()}</Text>
+                <Text style={styles.planSubAmount}>Savings: ₹{(savingsInvestingPlan.monthly_savings || 0).toLocaleString()}</Text>
+                <Text style={styles.planSubAmount}>Investing: ₹{(savingsInvestingPlan.monthly_investment || 0).toLocaleString()}</Text>
               </View>
-              <Text style={styles.planAmount}>₹{goalPlanning.savings_investing_plan.total_monthly.toLocaleString()}/month total</Text>
+              <Text style={styles.planAmount}>₹{(savingsInvestingPlan.total_monthly || 0).toLocaleString()}/month total</Text>
               <Text style={styles.planDuration}>
-                {goalPlanning.savings_investing_plan.years} years, {goalPlanning.savings_investing_plan.remaining_months} months
+                {savingsInvestingPlan.years || 0} years, {savingsInvestingPlan.remaining_months || 0} months
               </Text>
-              <Text style={styles.planNote}>⚡ {goalPlanning.time_saved.percentage_faster}% faster</Text>
+              <Text style={styles.planNote}>⚡ {timeSaved.percentage_faster || 0}% faster</Text>
             </View>
           </View>
 
           {/* Time Saved Highlight */}
           <View style={styles.timeSavedCard}>
             <Text style={styles.timeSavedTitle}>⏰ Time Saved by Investing</Text>
-            <Text style={styles.timeSavedAmount}>{goalPlanning.summary.time_saved}</Text>
-            <Text style={styles.timeSavedDescription}>{goalPlanning.summary.key_benefit}</Text>
+            <Text style={styles.timeSavedAmount}>{summary.time_saved || 'Calculating...'}</Text>
+            <Text style={styles.timeSavedDescription}>{summary.key_benefit || 'Smart investing helps reach goals faster'}</Text>
           </View>
         </View>
 
         {/* Timeline Comparison Chart */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>📈 Growth Timeline Comparison</Text>
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={timelineData}
-              width={width - 40}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
-          </View>
-          <View style={styles.chartLegend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#FF9F40' }]} />
-              <Text style={styles.legendText}>Savings Only</Text>
+        {chartData && timelineData && (
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>📈 Growth Timeline Comparison</Text>
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={timelineData}
+                width={width - 40}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+              />
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#006B3F' }]} />
-              <Text style={styles.legendText}>Savings + Investing</Text>
+            <View style={styles.chartLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: '#FF9F40' }]} />
+                <Text style={styles.legendText}>Savings Only</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: '#006B3F' }]} />
+                <Text style={styles.legendText}>Savings + Investing</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Investment Options */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💼 Recommended Investment Mix</Text>
-          <Text style={styles.riskProfileText}>
-            Risk Profile: {goalPlanning.savings_investing_plan.risk_profile.toUpperCase()} 
-            ({goalPlanning.savings_investing_plan.expected_return}% expected return)
-          </Text>
-          {goalPlanning.savings_investing_plan.investment_options.map((option, index) => (
-            <View key={index} style={styles.investmentOptionCard}>
-              <View style={styles.optionHeader}>
-                <Text style={styles.optionName}>{option.name}</Text>
-                <Text style={styles.optionAllocation}>{option.allocation}</Text>
+        {savingsInvestingPlan.investment_options && savingsInvestingPlan.investment_options.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💼 Recommended Investment Mix</Text>
+            <Text style={styles.riskProfileText}>
+              Risk Profile: {(savingsInvestingPlan.risk_profile || 'moderate').toUpperCase()} 
+              ({savingsInvestingPlan.expected_return || 8}% expected return)
+            </Text>
+            {savingsInvestingPlan.investment_options.map((option, index) => (
+              <View key={index} style={styles.investmentOptionCard}>
+                <View style={styles.optionHeader}>
+                  <Text style={styles.optionName}>{option.name || 'Investment Option'}</Text>
+                  <Text style={styles.optionAllocation}>{option.allocation || '0%'}</Text>
+                </View>
+                <Text style={styles.optionAmount}>₹{(option.monthly_amount || 0).toLocaleString()}/month</Text>
+                <Text style={styles.optionReturn}>Expected: {option.expected_return || '0%'} | Risk: {option.risk || 'Medium'}</Text>
+                <Text style={styles.optionDescription}>{option.description || 'Investment description'}</Text>
               </View>
-              <Text style={styles.optionAmount}>₹{option.monthly_amount.toLocaleString()}/month</Text>
-              <Text style={styles.optionReturn}>Expected: {option.expected_return} | Risk: {option.risk}</Text>
-              <Text style={styles.optionDescription}>{option.description}</Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Tax Optimization */}
         <View style={styles.taxOptimizationCard}>
@@ -556,44 +573,46 @@ export default function PlannerScreen() {
           <View style={styles.taxStats}>
             <View style={styles.taxStat}>
               <Text style={styles.taxLabel}>Annual Investment</Text>
-              <Text style={styles.taxValue}>₹{goalPlanning.tax_optimization.annual_investment.toLocaleString()}</Text>
+              <Text style={styles.taxValue}>₹{(taxOptimization.annual_investment || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.taxStat}>
               <Text style={styles.taxLabel}>Tax Saved</Text>
-              <Text style={styles.taxValueHighlight}>₹{goalPlanning.tax_optimization.total_tax_saved.toLocaleString()}</Text>
+              <Text style={styles.taxValueHighlight}>₹{(taxOptimization.total_tax_saved || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.taxStat}>
               <Text style={styles.taxLabel}>Net Cost</Text>
-              <Text style={styles.taxValue}>₹{goalPlanning.tax_optimization.net_investment_cost.toLocaleString()}</Text>
+              <Text style={styles.taxValue}>₹{(taxOptimization.net_investment_cost || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.taxStat}>
               <Text style={styles.taxLabel}>Effective Boost</Text>
-              <Text style={styles.taxValueHighlight}>{goalPlanning.tax_optimization.effective_return_boost}</Text>
+              <Text style={styles.taxValueHighlight}>{taxOptimization.effective_return_boost || '+0%'}</Text>
             </View>
           </View>
           
-          <View style={styles.taxRecommendations}>
-            <Text style={styles.taxRecommendationsTitle}>💡 Tax-Saving Tips:</Text>
-            {goalPlanning.tax_optimization.recommendations.map((rec, index) => (
-              <Text key={index} style={styles.taxRecommendation}>• {rec}</Text>
-            ))}
-          </View>
+          {taxOptimization.recommendations && taxOptimization.recommendations.length > 0 && (
+            <View style={styles.taxRecommendations}>
+              <Text style={styles.taxRecommendationsTitle}>💡 Tax-Saving Tips:</Text>
+              {taxOptimization.recommendations.map((rec, index) => (
+                <Text key={index} style={styles.taxRecommendation}>• {rec}</Text>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Recommended First Step */}
         <View style={styles.firstStepCard}>
           <Text style={styles.firstStepTitle}>🎯 Your Recommended First Step</Text>
-          <Text style={styles.firstStepAction}>{goalPlanning.recommended_first_step.action}</Text>
-          <Text style={styles.firstStepAmount}>{goalPlanning.recommended_first_step.amount}</Text>
-          <Text style={styles.firstStepDescription}>{goalPlanning.recommended_first_step.description}</Text>
-          <Text style={styles.firstStepPriority}>Priority: {goalPlanning.recommended_first_step.priority}</Text>
+          <Text style={styles.firstStepAction}>{recommendedFirstStep.action || 'Start Investing'}</Text>
+          <Text style={styles.firstStepAmount}>{recommendedFirstStep.amount || '₹5,000/month'}</Text>
+          <Text style={styles.firstStepDescription}>{recommendedFirstStep.description || 'Begin your investment journey'}</Text>
+          <Text style={styles.firstStepPriority}>Priority: {recommendedFirstStep.priority || 'Medium'}</Text>
         </View>
 
         {/* Friendly Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>🎉 Summary</Text>
-          <Text style={styles.summaryMotivation}>{goalPlanning.summary.motivation}</Text>
-          <Text style={styles.summaryNextStep}>{goalPlanning.summary.next_step}</Text>
+          <Text style={styles.summaryMotivation}>{summary.motivation || '💡 Every step towards financial freedom counts!'}</Text>
+          <Text style={styles.summaryNextStep}>{summary.next_step || 'Start with small, consistent investments'}</Text>
         </View>
       </ScrollView>
     );
