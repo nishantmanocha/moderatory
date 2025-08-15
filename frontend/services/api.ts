@@ -128,6 +128,28 @@ export const analyticsAPI = {
     const response = await api.get(`/analytics/${userId}/spending-insights?days=${days}`);
     return response.data;
   },
+
+  // New investment-related endpoints
+  getInvestmentRecommendations: async (userId: number) => {
+    const response = await api.get(`/analytics/${userId}/investment-recommendations`);
+    return response.data;
+  },
+
+  getPortfolioAllocation: async (userId: number, investmentAmount?: number) => {
+    const params = investmentAmount ? `?investmentAmount=${investmentAmount}` : '';
+    const response = await api.get(`/analytics/${userId}/portfolio-allocation${params}`);
+    return response.data;
+  },
+
+  getInvestmentComparison: async (userId: number, amount = 1000, years = 5) => {
+    const response = await api.get(`/analytics/${userId}/investment-comparison?amount=${amount}&years=${years}`);
+    return response.data;
+  },
+
+  getGoalPlanning: async (userId: number) => {
+    const response = await api.get(`/analytics/${userId}/goal-planning`);
+    return response.data;
+  },
 };
 
 // Budget API

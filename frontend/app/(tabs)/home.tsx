@@ -16,6 +16,7 @@ const mockUserId = 1; // In real app, get from AsyncStorage
 export default function HomeScreen() {
   const [safeSave, setSafeSave] = useState<any>(null);
   const [projection, setProjection] = useState<any>(null);
+  const [investmentPlan, setInvestmentPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,9 +26,10 @@ export default function HomeScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [safeSaveData, projectionData] = await Promise.all([
+      const [safeSaveData, projectionData, investmentData] = await Promise.all([
         analyticsAPI.getSafeSave(mockUserId),
         analyticsAPI.getProjection(mockUserId),
+        analyticsAPI.getInvestmentRecommendations(mockUserId),
       ]);
 
       if (safeSaveData.success) {
@@ -35,6 +37,9 @@ export default function HomeScreen() {
       }
       if (projectionData.success) {
         setProjection(projectionData.projection);
+      }
+      if (investmentData.success) {
+        setInvestmentPlan(investmentData.recommendations);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -177,6 +182,35 @@ export default function HomeScreen() {
               <Text style={styles.noData}>Unable to load projection</Text>
             )}
           </View>
+
+          {/* Today's Save & Invest Plan Card */}
+          {investmentPlan && investmentPlan.totalInvestment && investmentPlan.allocation && (
+            <View style={styles.investmentCard}>
+              <Text style={styles.cardTitle}>💡 Today's Save & Invest Plan</Text>
+              <Text style={styles.dailyTotal}>
+                ₹{Math.round((investmentPlan.totalInvestment || 0) / 30)}/day total
+              </Text>
+              
+              <View style={styles.investmentBreakdown}>
+                {Object.entries(investmentPlan.allocation || {}).map(([key, value]: [string, any], index) => (
+                  <View key={index} style={styles.investmentRow}>
+                    <Text style={styles.investmentScheme}>{value?.scheme || 'Investment'}</Text>
+                    <Text style={styles.investmentAmount}>₹{Math.round((value?.amount || 0) / 30)}/day</Text>
+                  </View>
+                ))}
+              </View>
+              
+              <View style={styles.investmentFooter}>
+                <View style={styles.investmentBenefit}>
+                  <Text style={styles.benefitText}>📈 Tax savings up to ₹46,800/year</Text>
+                  <Text style={styles.benefitText}>📊 Expected growth: {investmentPlan.risk_profile || 'balanced'} risk</Text>
+                </View>
+                <TouchableOpacity style={styles.learnMoreButton}>
+                  <Text style={styles.learnMoreText}>Learn More →</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
@@ -390,5 +424,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     fontStyle: 'italic',
+  },
+  investmentCard: {
+    backgroundColor: '#006B3F',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dailyTotal: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  investmentBreakdown: {
+    marginBottom: 16,
+  },
+  investmentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  investmentScheme: {
+    fontSize: 14,
+    color: '#E8F5E8',
+    flex: 1,
+  },
+  investmentAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  investmentFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    paddingTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  investmentBenefit: {
+    flex: 1,
+  },
+  benefitText: {
+    fontSize: 12,
+    color: '#E8F5E8',
+    marginBottom: 4,
+  },
+  learnMoreButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  learnMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
