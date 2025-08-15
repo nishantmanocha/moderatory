@@ -145,6 +145,11 @@ export const analyticsAPI = {
     const response = await api.get(`/analytics/${userId}/investment-comparison?amount=${amount}&years=${years}`);
     return response.data;
   },
+
+  getGoalPlanning: async (userId: number) => {
+    const response = await api.get(`/analytics/${userId}/goal-planning`);
+    return response.data;
+  },
 };
 
 // Budget API
